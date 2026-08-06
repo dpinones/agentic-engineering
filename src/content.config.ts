@@ -10,8 +10,12 @@ const jsonLdNodeSchema = z.looseObject({
   "@type": z.string().min(1),
 });
 
-const attributionSchema = z
+const docsExtendSchema = z
   .object({
+    /** All pages are required to have a meaningful description. */
+    description: z.string().min(1),
+    jsonLd: z.array(jsonLdNodeSchema).optional(),
+    clapButtons: z.boolean().default(true),
     authors: z.array(z.string().min(1)).optional(),
     showAttribution: z.boolean().default(true),
   })
@@ -29,14 +33,7 @@ export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
     schema: docsSchema({
-      extend: z
-        .object({
-          /** All pages are required to have a meaningful description. */
-          description: z.string().min(1),
-          jsonLd: z.array(jsonLdNodeSchema).optional(),
-          clapButtons: z.boolean().default(true),
-        })
-        .and(attributionSchema),
+      extend: docsExtendSchema,
     }),
   }),
   links: defineCollection({
