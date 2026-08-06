@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload changelog entry
         if: steps.changelog.outputs.empty == 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: changelog-entry
           path: /tmp/ai-result.json
