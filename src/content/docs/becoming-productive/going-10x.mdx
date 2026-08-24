@@ -14,19 +14,78 @@ This page explains how to handle that effectively.
 
 ## Conflict management
 
-1. The most popular option is to have each parallel agent run in a Git worktree.
-   - A Git worktree is an additional working directory attached to the same repository, so you can have multiple branches checked out side by side without cloning the repo again.
-   - For this to be efficient, your app needs to be easily bootable with a blank or seeded state from a fresh Git checkout.
-   - Raw Git worktrees can be annoying when you want to quickly jump into an agent's changes, switch editor context, or test uncommitted work on a simulator.
-     Git also has a limitation: each worktree of a single checkout must operate on a different `HEAD` (branch/commit/ref).
-   - Some coding agents offer built-in worktree management, such as <ExternalLink href="https://docs.conductor.build/guides/spotlight-testing">Conductor Spotlight Testing</ExternalLink> and <ExternalLink href="https://developers.openai.com/codex/app/worktrees/#working-between-local-and-worktree">Codex Handoff</ExternalLink>.
-     These tools remove a lot of the plumbing involved in moving between an isolated agent workspace and the place where you actually run or test the app.
-   - Models easily handle prompts such as `do this in a /tmp worktree`.
-2. You can also try keeping several separate full Git checkouts.
-3. Or, you can go YOLO and actually have multiple agents operate on a single codebase.
-   1. Tell your agents to commit frequently, atomically, and only stage stuff from the current thread.
-      You can put this as a rule in your `AGENTS.md` file.
-   2. Avoid invoking tasks that would write to the same parts of the repository.
+There are several ways to give parallel agents their own writable workspaces.
+
+### Cloud agents
+
+Cloud agents run on machines managed by the provider, usually from a fresh clone on a dedicated branch.
+Examples include <ExternalLink href="https://cursor.com/docs/cloud-agent" /> and <ExternalLink href="https://ampcode.com/manual/orbs" />.
+
+Cloud agents are easy to scale because each one gets its own compute, filesystem, and processes.
+You can start several tasks without tying up your laptop, leave them running, and review the branches or pull requests later.
+
+A new remote machine starts without your tools, dependencies, secrets, services, or local data.
+Keep the setup in the repository so that the agent can build and test the code.
+Cursor uses `.cursor/environment.json` for install and startup commands and saves prepared environments as reusable Builds (<ExternalLink href="https://cursor.com/docs/cloud-agent/setup" />).
+Amp uses `.agents/setup` to prepare a fresh orb, `.agents/resume` to repair its state after waking up, and `.amp/services.yaml` for development services that should keep running (<ExternalLink href="https://ampcode.com/manual/orbs" />).
+
+Cloud agents can still reach private infrastructure.
+For example, Cursor Cloud Agents can connect through Tailscale, Cloudflare Tunnel, and similar tools (<ExternalLink href="https://cursor.com/docs/cloud-agent/security-network" />).
+For mobile agents, <ExternalLink href="https://argent.swmansion.com/cloud" /> provides hosted iOS simulators, and <ExternalLink href="https://docs.expo.dev/eas/cli/" /> provides a similar service for iOS and Android.
+
+Use a local agent when a task depends on hardware or local state that you cannot expose remotely.
+For cloud agents, keep credentials narrowly scoped and check what the provider stores in images, snapshots, logs, and environment configuration.
+
+### Git worktrees
+
+A Git worktree is an extra working directory attached to the same repository.
+Worktrees share Git's object database, so they are usually the cheapest local option.
+
+Each worktree must use a different `HEAD` (branch, commit, or ref).
+A new worktree contains only tracked files, so you may need to restore dependencies, generated files, and ignored configuration before the agent can work.
+This approach works best when the app can boot with a blank or seeded state from a fresh checkout.
+
+Agent harnesses can automate some of the setup:
+
+- <ExternalLink href="https://developers.openai.com/codex/app/local-environments/" />
+- <ExternalLink href="https://code.claude.com/docs/en/worktrees" />
+- <ExternalLink href="https://code.claude.com/docs/en/settings#worktree-settings" />
+
+Editors and IDEs can manage them too:
+
+- <ExternalLink href="https://code.visualstudio.com/docs/sourcecontrol/branches-worktrees" />
+- <ExternalLink href="https://www.jetbrains.com/help/idea/use-git-worktrees.html" />
+- <ExternalLink href="https://zed.dev/docs/git" />
+
+Some tools make it easier to move changes between an agent worktree and the checkout where you run or test the app:
+
+- <ExternalLink href="https://docs.conductor.build/guides/spotlight-testing" />
+- <ExternalLink href="https://developers.openai.com/codex/app/worktrees/#working-between-local-and-worktree" />
+
+Without built-in support, you can usually tell a model to `do this in a /tmp worktree`.
+
+### Separate checkouts
+
+You can give each agent a complete Git clone instead.
+Each clone has its own Git metadata, so several clones can use the same `HEAD` and work with tools that do not understand worktrees.
+Full clones are simple, but they duplicate repository data and dependencies.
+Each clone also needs its own setup and must be kept in sync.
+
+:::tip
+You can copy a checkout without duplicating every disk block.
+APFS supports file cloning.
+Use `cp -c` on macOS or `cp --reflink` on a reflink-capable Linux filesystem such as XFS.
+The copies share disk blocks until a file changes.
+:::
+
+### Shared checkout
+
+You can also go YOLO and let several agents operate in one working directory.
+This only works when the tasks touch clearly separate parts of the repository.
+
+Tell agents to commit frequently and atomically, and to stage only changes from their own task.
+Put that rule in `AGENTS.md` so every agent sees it.
+Do not run formatters, generators, dependency installers, or other commands that rewrite shared files at the same time.
 
 ## Help! My agents are writing spaghetti!!!
 
