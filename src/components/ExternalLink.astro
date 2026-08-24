@@ -61,7 +61,7 @@ const externalTitle = externalTitleParts.join(". ").trim() || undefined;
   >{
     !hasCustomLabel && (
       <>
-        {record.author && <i>{` ${record.author}.`}</i>}
+        {record.author && <i>{` ${record.author}${record.date && "."}`}</i>}
         {record.date && ` ${record.date}`}
       </>
     )
